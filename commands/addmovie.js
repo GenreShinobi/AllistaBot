@@ -70,6 +70,7 @@ module.exports = {
 				const list = await getList();
 				const movie = await getFirstMovie(list);
 
+				// constructs the Movie Embed
 				const mEmbed = new Discord.MessageEmbed()
 					.setColor('#0099ff')
 					.setTitle(`${movie.Title}`)
@@ -82,13 +83,20 @@ module.exports = {
 						{ name: 'Rated:', value: `${movie.Rated}`, inline: true },
 						{ name: 'Genre:', value: `${movie.Genre}`, inline: true },
 					);
-				message.delete();
-				const mEmbedMsg = await message.channel.send(mEmbed);
-				const filter = m => m.author.id === message.author.id;
-				let userResponse = await awaitResponse(mEmbedMsg, filter);
-				console.log('userResponse was returned: ' + userResponse);
-				console.log('userResponse being checked: ' + userResponse.content.toUpperCase());
 
+				// deletes the users command.
+				message.delete();
+
+				// Post and Get the Movie Embed response.
+				const mEmbedMsg = await message.channel.send(mEmbed);
+
+				// Create a filter for the current user.
+				const filter = m => m.author.id === message.author.id;
+
+				// Wait for a get users response.
+				let userResponse = await awaitResponse(mEmbedMsg, filter);
+
+				// Check the response
 				if (userResponse.content.toUpperCase() == 'YES' || userResponse.content.toUpperCase() == 'Y') {
 					mEmbedMsg.delete();
 					userResponse.channel.send('TODO: Add to list');
@@ -174,7 +182,15 @@ module.exports = {
 							cEmbedMsg.delete();
 							break;
 						}
+						else {
+							lEmbedMsg.delete();
+							userResponse.channel.send('Sorry, I did not understand. Please try again.');
+						}
 					}
+				}
+				else {
+					mEmbedMsg.delete();
+					userResponse.channel.send('Sorry, I did not understand. Please try again.');
 				}
 			}
 			else {
