@@ -1,3 +1,4 @@
+const { ok } = require('assert');
 const Discord = require('discord.js');
 const fetch = require('node-fetch');
 
@@ -8,7 +9,7 @@ module.exports = {
 
 		// Function returns the first movie in list
 		async function getFirstMovie(list) {
-			console.log('Called: getMovie()');
+			console.log('Called: getFirstMovie()');
 			let movie;
 			await fetch(`http://www.omdbapi.com/?i=${list.Search[0].imdbID}&apikey=69ad87c1`)
 				.then(res => res.json())
@@ -61,6 +62,66 @@ module.exports = {
 			return response;
 		}
 
+		// Adds movie to alist in Firebase
+		async function pushMovie(msg, movie) {
+			db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).get()
+				.then((ref) => {
+					if (ref.exists) {
+						message.reply('This appears to be a popular choice, it is already on the list.');
+					}
+					else {
+						db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).set({
+							'imdbID' : movie.imdbID,
+							'AddedBy' : msg.author.username,
+							'DateAdded' : Date.now(),
+							'Title' : movie.Title,
+							'isCustom' : false,
+							'Watched' : false,
+						}).then(function() {
+							msg.reply('Addition was successful');
+							postIMDBMovie(msg, movie);
+						}).catch(function(err) {
+							console.log(err);
+							msg.channel.send('An error occured when adding that movie to the list... Aborting.');
+						});
+					}
+				});
+		}
+
+		// Posts the Movie to the List channel -- IMDB Movie
+		async function postIMDBMovie(msg, movie) {
+			const pEmbed = new Discord.MessageEmbed()
+				.setColor('#2A9D8F')
+				.setTitle(`${movie.Title}`)
+				.setURL(`https://www.imdb.com/title/${movie.imdbID}`)
+				.setThumbnail(`${movie.Poster}`)
+				.setDescription(`${movie.Plot}`)
+				.addFields(
+					{ name: 'Released:', value: `${movie.Released}`, inline: true },
+					{ name: 'Rated:', value: `${movie.Rated}`, inline: true },
+					{ name: 'Genre:', value: `${movie.Genre}`, inline: true },
+					{ name: 'Runtime', value: `${movie.Runtime}`, inline: true },
+					{ name: 'Director', value: `${movie.Director}`, inline: true },
+					{ name: 'Actors', value: `${movie.Actors}`, inline: true },
+					{ name: 'Metascore', value: `${movie.Metascore}`, inline: true },
+					{ name: 'IMDB Rating', value: `${movie.imdbRating}`, inline: true },
+				)
+				.setTimestamp()
+				.setFooter(`Added by ${msg.author.username}`);
+			msg.channel.send(pEmbed);
+		}
+
+		// Post the Movie to the List Channel -- Custom Movie
+		async function postCustomMovie(msg, movie) {
+			const pEmbed = new Discord.MessageEmbed()
+				.setColor('#2A9D8F')
+				.setTitle(`${movie}`)
+				.setDescription('IMDB Info was not found for this entry. That is ok! It is added to the list and we can tackle it when it gets drawn.')
+				.setTimestamp()
+				.setFooter(`Added by ${msg.author.username}`);
+			msg.channel.send(pEmbed);
+		}
+
 		async function asyncCalls() {
 			console.log('Called: asyncCalls()');
 			const eligibility = await getEligibility();
@@ -100,6 +161,7 @@ module.exports = {
 				if (userResponse.content.toUpperCase() == 'YES' || userResponse.content.toUpperCase() == 'Y') {
 					mEmbedMsg.delete();
 					userResponse.channel.send('TODO: Add to list');
+					pushMovie(userResponse, movie);
 				}
 				else if (userResponse.content.toUpperCase() == 'NO' || userResponse.content.toUpperCase() == 'N') {
 					// eslint-disable-next-line prefer-const
@@ -142,6 +204,7 @@ module.exports = {
 					// Post and get the List embed post.
 					const lEmbedMsg = await message.channel.send(lEmbed);
 
+					// eslint-disable-next-line no-constant-condition
 					waitForResponse: while(true) {
 						// Wait for the users response.
 						userResponse = await awaitResponse(lEmbedMsg, filter);
@@ -165,7 +228,7 @@ module.exports = {
 							break;
 						}
 						else if (userResponse.content < 1 || userResponse.content > max + 1) {
-							// If the response was not a valid ID, ask again. 
+							// If the response was not a valid ID, ask again.
 							userResponse.channel.send('Sorry, that ID was not valid.');
 							continue waitForResponse;
 						}
@@ -178,6 +241,7 @@ module.exports = {
 							const cEmbedMsg = await userResponse.channel.send(cEmbed);
 							userResponse = await awaitResponse(cEmbedMsg, filter);
 							userResponse.delete();
+							postCustomMovie(userResponse, userResponse.content);
 							userResponse.channel.send(`**${userResponse.content}** added to alist.`);
 							cEmbedMsg.delete();
 							break;
