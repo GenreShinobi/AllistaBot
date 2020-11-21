@@ -77,17 +77,17 @@ module.exports = {
 									message.channel.send('Added.');
 								}
 								else if (message.content.toUpperCase() == 'NO' || message.content.toUpperCase() == 'N') {
-									let idArray = [];
 									let titleArray = [];
 									let dateArray = [];
+									let imdbArray = [];
 
-									let max = Object.keys(list.Search).length;
+									let max = Object.keys(list.Search).length - 1;
 									if (max > 10) { max = 10; }
 
 									for (let i = 0; i < max; i++) {
-										idArray.push(i + 1);
-										titleArray.push(list.Search[i].Title);
-										dateArray.push(list.Search[i].Year);
+										titleArray.push(`[${i + 1}] ${list.Search[i + 1].Title}`);
+										dateArray.push(list.Search[i + 1].Year);
+										imdbArray.push(`[Link](https://www.imdb.com/title/${list.Search[i + 1].imdbID})`);
 									}
 									console.log(dateArray);
 
@@ -95,9 +95,9 @@ module.exports = {
 										.setColor('#0099ff')
 										.setAuthor('Any of these the correct movie?')
 										.addFields(
-											{ name: 'ID', value: `${idArray.join('\n')}`, inline: true },
-											{ name: 'Title', value: `${titleArray.join('\n')}`, inline: true },
+											{ name: 'ID/Title', value: `${titleArray.join('\n')}`, inline: true },
 											{ name: 'Date', value: `${dateArray.join('\n')}`, inline: true },
+											{ name: 'IMDB', value: `${imdbArray.join('\n')}`, inline: true },
 										);
 									message.delete();
 									message.channel.send(lEmbed);
