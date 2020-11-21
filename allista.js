@@ -62,7 +62,7 @@ client.on('message', message => {
 		}
 		else {
 			try {
-				client.commands.get(command).execute(message, args, db);
+				client.commands.get(command).execute(message, args, db, client);
 			}
 			catch (error) {
 				console.error(error);

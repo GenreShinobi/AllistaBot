@@ -1,17 +1,22 @@
-const { ok } = require('assert');
 const Discord = require('discord.js');
 const fetch = require('node-fetch');
 
 module.exports = {
 	name: 'add',
 	description: 'Add Movies to the A-List.',
-	execute(message, args, db) {
+	execute(message, args, db, bot) {
 
 		// Function returns the first movie in list
 		async function getFirstMovie(list) {
 			console.log('Called: getFirstMovie()');
+			const movie = await getMovieByIMDBID(list.Search[0].imdbID);
+			return movie;
+		}
+
+		// Function returns the movie by IMDB
+		async function getMovieByIMDBID(ID) {
 			let movie;
-			await fetch(`http://www.omdbapi.com/?i=${list.Search[0].imdbID}&apikey=69ad87c1`)
+			await fetch(`http://www.omdbapi.com/?i=${ID}&apikey=69ad87c1`)
 				.then(res => res.json())
 				.then(data => {
 					movie = data;
@@ -63,29 +68,47 @@ module.exports = {
 		}
 
 		// Adds movie to alist in Firebase
-		async function pushMovie(msg, movie) {
-			db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).get()
-				.then((ref) => {
-					if (ref.exists) {
-						message.reply('This appears to be a popular choice, it is already on the list.');
-					}
-					else {
-						db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).set({
-							'imdbID' : movie.imdbID,
-							'AddedBy' : msg.author.username,
-							'DateAdded' : Date.now(),
-							'Title' : movie.Title,
-							'isCustom' : false,
-							'Watched' : false,
-						}).then(function() {
-							msg.reply('Addition was successful');
-							postIMDBMovie(msg, movie);
-						}).catch(function(err) {
-							console.log(err);
-							msg.channel.send('An error occured when adding that movie to the list... Aborting.');
-						});
-					}
+		async function pushMovie(msg, movie, isCustom) {
+			if(isCustom) {
+				db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie).set({
+					'imdbID' : null,
+					'AddedBy' : msg.author.username,
+					'DateAdded' : Date.now(),
+					'Title' : movie,
+					'isCustom' : true,
+					'Watched' : false,
+				}).then(function() {
+					msg.channel.send('Addition was successful!');
+					postCustomMovie(msg, movie);
+				}).catch(function(err) {
+					console.log(err);
+					msg.channel.send('An error occured when adding that movie to the list... Aborting.');
 				});
+			}
+			else {
+				db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).get()
+					.then((ref) => {
+						if (ref.exists) {
+							message.reply('This appears to be a popular choice, it is already on the list.');
+						}
+						else {
+							db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).set({
+								'imdbID' : movie.imdbID,
+								'AddedBy' : msg.author.username,
+								'DateAdded' : Date.now(),
+								'Title' : movie.Title,
+								'isCustom' : false,
+								'Watched' : false,
+							}).then(function() {
+								msg.reply('Addition was successful');
+								postIMDBMovie(msg, movie);
+							}).catch(function(err) {
+								console.log(err);
+								msg.channel.send('An error occured when adding that movie to the list... Aborting.');
+							});
+						}
+					});
+			}
 		}
 
 		// Posts the Movie to the List channel -- IMDB Movie
@@ -108,7 +131,8 @@ module.exports = {
 				)
 				.setTimestamp()
 				.setFooter(`Added by ${msg.author.username}`);
-			msg.channel.send(pEmbed);
+			const channel = bot.channels.cache.get('779747280735567933');
+			channel.send(pEmbed);
 		}
 
 		// Post the Movie to the List Channel -- Custom Movie
@@ -119,7 +143,9 @@ module.exports = {
 				.setDescription('IMDB Info was not found for this entry. That is ok! It is added to the list and we can tackle it when it gets drawn.')
 				.setTimestamp()
 				.setFooter(`Added by ${msg.author.username}`);
-			msg.channel.send(pEmbed);
+			console.log(msg.member.guild.channels);
+			const channel = bot.channels.cache.get('779747280735567933');
+			channel.send(pEmbed);
 		}
 
 		async function asyncCalls() {
@@ -129,7 +155,7 @@ module.exports = {
 			// Check user Eligibility before proceeding with async addMovie calls.
 			if(eligibility) {
 				const list = await getList();
-				const movie = await getFirstMovie(list);
+				let movie = await getFirstMovie(list);
 
 				// constructs the Movie Embed
 				const mEmbed = new Discord.MessageEmbed()
@@ -159,9 +185,9 @@ module.exports = {
 
 				// Check the response
 				if (userResponse.content.toUpperCase() == 'YES' || userResponse.content.toUpperCase() == 'Y') {
+					userResponse.delete();
 					mEmbedMsg.delete();
-					userResponse.channel.send('TODO: Add to list');
-					pushMovie(userResponse, movie);
+					pushMovie(userResponse, movie, false);
 				}
 				else if (userResponse.content.toUpperCase() == 'NO' || userResponse.content.toUpperCase() == 'N') {
 					// eslint-disable-next-line prefer-const
@@ -224,7 +250,8 @@ module.exports = {
 						else if (userResponse.content > 0 && userResponse.content < max + 1) {
 							// If the response was a valid ID, add the movie.
 							lEmbedMsg.delete();
-							userResponse.channel.send('TODO: Add movie to list.');
+							movie = await getMovieByIMDBID(list.Search[userResponse.content].imdbID);
+							pushMovie(userResponse, movie, false);
 							break;
 						}
 						else if (userResponse.content < 1 || userResponse.content > max + 1) {
@@ -241,7 +268,7 @@ module.exports = {
 							const cEmbedMsg = await userResponse.channel.send(cEmbed);
 							userResponse = await awaitResponse(cEmbedMsg, filter);
 							userResponse.delete();
-							postCustomMovie(userResponse, userResponse.content);
+							pushMovie(userResponse, userResponse.content, true);
 							userResponse.channel.send(`**${userResponse.content}** added to alist.`);
 							cEmbedMsg.delete();
 							break;
