@@ -8,13 +8,14 @@ module.exports = {
 
 		// Function returns the first movie in list
 		async function getFirstMovie(list) {
-			console.log('Called: getFirstMovie()');
+			console.log('Method Called: getFirstMovie()');
 			const movie = await getMovieByIMDBID(list.Search[0].imdbID);
 			return movie;
 		}
 
 		// Function returns the movie by IMDB
 		async function getMovieByIMDBID(ID) {
+			console.log('Method Called: getMovieByIMDBID(ID)');
 			let movie;
 			await fetch(`http://www.omdbapi.com/?i=${ID}&apikey=69ad87c1`)
 				.then(res => res.json())
@@ -26,7 +27,7 @@ module.exports = {
 
 		// Function returns the search results of an OMDB API Call
 		async function getList() {
-			console.log('Called: getList()');
+			console.log('Method Called: getList()');
 			let list;
 			await fetch(`http://www.omdbapi.com/?s=${args.join('+')}&apikey=69ad87c1`)
 				.then(res => res.json())
@@ -38,7 +39,7 @@ module.exports = {
 
 		// Function returns the eligibility of a user to add to the list
 		async function getEligibility() {
-			console.log('Called: getEligibility()');
+			console.log('Method Called: getEligibility()');
 			const eligibility = await db.collection('guilds').doc(message.guild.id).collection('users').doc(message.author.id).get()
 				.then((ref) => {
 					// if the user is a member, move forward
@@ -54,6 +55,7 @@ module.exports = {
 
 		// Awaits for and returns the a users response
 		async function awaitResponse(msg, filter) {
+			console.log('Method Called: awaitResponse(msg, filter)');
 			let response;
 			await msg.channel.awaitMessages(filter, {
 				max: 1,
@@ -192,23 +194,19 @@ module.exports = {
 				else if (userResponse.content.toUpperCase() == 'NO' || userResponse.content.toUpperCase() == 'N') {
 					// eslint-disable-next-line prefer-const
 					let titleArray = [];
-					// eslint-disable-next-line prefer-const
-					let dateArray = [];
-					// eslint-disable-next-line prefer-const
-					let imdbArray = [];
 
 					// Get the max # of results
 					let max = Object.keys(list.Search).length - 1;
 
 					// If the max # of results is > 10, limit it to the top 10
-					// Reason: formatting becomes an issue with longer lists.
+					// Reason: formatting becomes an issue with longer lists when displayed in Discord.
 					if (max > 10) { max = 10; }
 
 					// Generate the arrays that will be used as the value of the inline fields of the Embed
 					for (let i = 0; i < max; i++) {
-						titleArray.push(`[${i + 1}] ${list.Search[i + 1].Title}`);
-						dateArray.push(list.Search[i + 1].Year);
-						imdbArray.push(`[Link](https://www.imdb.com/title/${list.Search[i + 1].imdbID})`);
+						titleArray.push(`[${i + 1}] [${list.Search[i + 1].Title}](https://www.imdb.com/title/${list.Search[i + 1].imdbID}) (${list.Search[i + 1].Year})`);
+					//	dateArray.push(list.Search[i + 1].Year);
+					//	imdbArray.push(`[Link](https://www.imdb.com/title/${list.Search[i + 1].imdbID})`);
 					}
 
 					// Construct the List Embed for displaying the fallback list.
@@ -216,9 +214,7 @@ module.exports = {
 						.setColor('#0099ff')
 						.setAuthor('Any of these the correct movie?')
 						.addFields(
-							{ name: 'ID/Title', value: `${titleArray.join('\n')}`, inline: true },
-							{ name: 'Date', value: `${dateArray.join('\n')}`, inline: true },
-							{ name: 'IMDB', value: `${imdbArray.join('\n')}`, inline: true },
+							{ name: '[ID] Title (Year)', value: `${titleArray.join('\n')}` },
 						);
 
 					// Remove the users command line.
