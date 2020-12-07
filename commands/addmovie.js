@@ -59,7 +59,7 @@ module.exports = {
 			let response;
 			await msg.channel.awaitMessages(filter, {
 				max: 1,
-				time: 15000,
+				time: 10000,
 				errors: ['time'],
 			})
 				.then(res => {
@@ -79,6 +79,9 @@ module.exports = {
 					'Title' : movie,
 					'isCustom' : true,
 					'Watched' : false,
+					'DateWatched' : null,
+					'MsgID' : null,
+					'ChID'	: null,
 				}).then(function() {
 					msg.channel.send('Addition was successful!');
 					postCustomMovie(msg, movie);
@@ -101,6 +104,10 @@ module.exports = {
 								'Title' : movie.Title,
 								'isCustom' : false,
 								'Watched' : false,
+								'DateWatched' : null,
+								'MsgID' : null,
+								'ChID'	: null,
+								'Poster' : movie.Poster,
 							}).then(function() {
 								msg.reply('Addition was successful');
 								postIMDBMovie(msg, movie);
@@ -134,7 +141,13 @@ module.exports = {
 				.setTimestamp()
 				.setFooter(`Added by ${msg.author.username}`);
 			const channel = bot.channels.cache.get('779747280735567933');
-			channel.send(pEmbed);
+			channel.send(pEmbed)
+				.then(res => {
+					db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).update({
+						'MsgID' : res.id,
+						'ChID' : res.channel.id,
+					});
+				});
 		}
 
 		// Post the Movie to the List Channel -- Custom Movie
@@ -147,7 +160,13 @@ module.exports = {
 				.setFooter(`Added by ${msg.author.username}`);
 			console.log(msg.member.guild.channels);
 			const channel = bot.channels.cache.get('779747280735567933');
-			channel.send(pEmbed);
+			channel.send(pEmbed)
+				.then(res => {
+					db.collection('guilds').doc(message.guild.id).collection('alist').doc(movie.imdbID).update({
+						'MsgID' : res.id,
+						'ChID' : res.channel.id,
+					});
+				});
 		}
 
 		async function asyncCalls() {
@@ -186,12 +205,12 @@ module.exports = {
 				let userResponse = await awaitResponse(mEmbedMsg, filter);
 
 				// Check the response
-				if (userResponse.content.toUpperCase() == 'YES' || userResponse.content.toUpperCase() == 'Y') {
+				if (userResponse.content.toUpperCase() === 'YES' || userResponse.content.toUpperCase() === 'Y') {
 					userResponse.delete();
 					mEmbedMsg.delete();
 					pushMovie(userResponse, movie, false);
 				}
-				else if (userResponse.content.toUpperCase() == 'NO' || userResponse.content.toUpperCase() == 'N') {
+				else if (userResponse.content.toUpperCase() === 'NO' || userResponse.content.toUpperCase() === 'N') {
 					// eslint-disable-next-line prefer-const
 					let titleArray = [];
 
