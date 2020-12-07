@@ -29,6 +29,10 @@ module.exports = {
 				.then(res => res.json())
 				.then(data => {
 					joke = data;
+				})
+				.catch(err => {
+					console.log(err);
+					message.channel.send(`Sorry, no jokes were found using the keyword "${args}"`)
 				});
 			console.log(joke);
 			return joke;
